@@ -5,7 +5,7 @@ on:
 
 jobs:
   build:
-    name: Build ${{ matrix.arch }}
+    name: Build ${{ matrix.arch }}-${{ matrix.release }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
