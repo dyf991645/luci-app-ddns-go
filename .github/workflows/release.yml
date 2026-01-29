@@ -39,8 +39,7 @@ jobs:
           # - mipsel_mips32
           # - x86_64
         release:
-          - openwrt-24.10
-          - openwrt-25.12.0-rc3-mediatek-filogic
+          - openwrt-25.12
           - SNAPSHOT
     steps:
       - name: Checkout
