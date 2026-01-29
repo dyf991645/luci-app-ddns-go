@@ -10,6 +10,8 @@ jobs:
   build:
     name: Build ${{ matrix.arch }}-${{ matrix.release }}
     runs-on: ubuntu-latest
+    env:
+      TARGET: ${{ matrix.arch }}-${{ matrix.release }}
     strategy:
       fail-fast: false
       matrix:
@@ -56,7 +58,7 @@ jobs:
       - name: Building packages
         uses: openwrt/gh-action-sdk@main
         env:
-          ARCH: ${{ matrix.arch }}-${{ matrix.release }}
+          ARCH: ${{ env.TARGET }}
           FEEDNAME: packages_ci
           PACKAGES: luci-app-ddns-go
           NO_REFRESH_CHECK: true
@@ -65,8 +67,21 @@ jobs:
       - name: Upload artifacts
         uses: actions/upload-artifact@v6
         with:
-          name: ${{ matrix.arch }}-${{ matrix.release }}
-          path: bin/packages/${{ matrix.arch }}/packages_ci/*.[ai]pk
+          name: ${{ env.TARGET }}
+          path: bin/packages/${{ env.TARGET }}/packages_ci/*.[ai]pk
+
+      - name: Rename packages with target
+        run: |
+          for f in bin/packages/${TARGET}/packages_ci/*.[ai]pk; do
+            [ -e "$f" ] || continue   # 防止 glob 为空时报错
+          
+            dir=$(dirname "$f")
+            base=$(basename "$f")     # e.g. ddns-go-6.15.0-r1.apk
+            ext="${base##*.}"         # apk 或 ipk
+            name="${base%.*}"         # ddns-go-6.15.0-r1
+          
+            mv "$f" "${dir}/${name}-${TARGET}.${ext}"
+          done
 
       - name: Upload packages
         uses: ncipollo/release-action@v1
@@ -75,4 +90,4 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           allowUpdates: true
           replacesArtifacts: true
-          artifacts: "bin/packages/${{ matrix.arch }}/packages_ci/*.[ai]pk"
+          artifacts: "bin/packages/${{ env.TARGET }}/packages_ci/*.[ai]pk"
