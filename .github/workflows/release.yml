@@ -81,6 +81,7 @@ jobs:
             name="${base%.*}"         # ddns-go-6.15.0-r1
           
             mv "$f" "${dir}/${name}-${TARGET}.${ext}"
+            echo "move ${f} to "${dir}/${name}-${TARGET}.${ext}"
           done
 
       - name: Upload packages
