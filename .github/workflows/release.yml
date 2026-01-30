@@ -7,8 +7,21 @@ on:
       - v*
 
 jobs:
+  prepare:
+      runs-on: ubuntu-latest
+      outputs:
+        release_tag: ${{ steps.tag_logic.outputs.final_tag }}
+      steps:
+        - id: tag_logic
+          run: |
+            if [ "${{ github.ref_type }}" == "tag" ]; then
+              echo "final_tag=${{ github.ref_name }}" >> $GITHUB_OUTPUT
+            else
+              echo "final_tag=v$(date +'%Y%m%d%H%M%S')" >> $GITHUB_OUTPUT
+            fi
   build:
     name: Build ${{ matrix.arch }}
+    needs: prepare
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -45,6 +58,20 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
+      - name: Determine Tag Name
+        id: tag_logic
+        run: |
+          if [ "${{ github.ref_type }}" == "tag" ]; then
+            # 如果是 push tags 触发，直接使用当前的 tag 名
+            echo "final_tag=${{ github.ref_name }}" >> $GITHUB_OUTPUT
+            echo "Using existing git tag: ${{ github.ref_name }}"
+          else
+            # 否则（如 workflow_dispatch），生成一个带时间戳的新 tag
+            NEW_TAG="manual-$(date +'%Y%m%d-%H%M%S')"
+            echo "final_tag=$NEW_TAG" >> $GITHUB_OUTPUT
+            echo "Generated new tag: $NEW_TAG"
+          fi
+          
       - name: Setup Go
         uses: actions/setup-go@v6
         with:
@@ -68,7 +95,9 @@ jobs:
       - name: Release
         uses: ncipollo/release-action@v1
         with:
-          name: ${{ github.ref_name }}
+          name: ${{ needs.prepare.outputs.release_tag }}
+          tag: ${{ needs.prepare.outputs.release_tag }}
+          commit: ${{ github.ref_name }}
           token: ${{ secrets.GITHUB_TOKEN }}
           allowUpdates: true
           replacesArtifacts: true
