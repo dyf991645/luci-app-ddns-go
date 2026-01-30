@@ -31,7 +31,7 @@ jobs:
       - name: Building luci packages (arch independent)
         uses: openwrt/gh-action-sdk@main
         env:
-          ARCH: all
+          ARCH: latest
           FEEDNAME: packages_ci
           PACKAGES: "luci-app-ddns-go luci-i18n-ddns-go"
           NO_REFRESH_CHECK: true
