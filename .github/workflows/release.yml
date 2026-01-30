@@ -53,7 +53,7 @@ jobs:
           path: bin/packages/*/packages_ci/*.[ai]pk
 
   build-core:
-    name: Build ${{ matrix.arch }}
+    name: Build core ${{ matrix.arch }}
     needs: prepare
     runs-on: ubuntu-latest
     strategy:
@@ -130,6 +130,11 @@ jobs:
         with:
           path: ./artifacts
 
+      - name: Collect artifacts to release
+        run: |
+          mkdir -p release_files
+          find ./artifacts -type f \( -name "*.ipk" -o -name "*.apk" \) -exec cp {} release_files/ \;
+
       - name: Release all artifacts
         uses: ncipollo/release-action@v1
         with:
@@ -140,4 +145,4 @@ jobs:
           allowUpdates: true
           replacesArtifacts: true
           artifactErrorsFailBuild: true
-          artifacts: "*"
+          artifacts: "release_files/*"
