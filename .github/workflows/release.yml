@@ -33,13 +33,13 @@ jobs:
         env:
           ARCH: latest
           FEEDNAME: packages_ci
-          PACKAGES: "luci-app-ddns-go luci-i18n-ddns-go"
+          PACKAGES: "luci-app-ddns-go"
           NO_REFRESH_CHECK: true
           V: s
 
       - name: Add suffix to luci packages
         run: |
-          for file in bin/packages/*/packages_ci/luci-*.[ai]pk; do
+          for file in bin/packages/*/packages_ci/*.[ai]pk; do
             dir=$(dirname "$file")
             filename=$(basename "$file")
             newname="${filename%.*}_all.${filename##*.}"
@@ -50,9 +50,8 @@ jobs:
         uses: actions/upload-artifact@v6
         with:
           name: luci-packages
-          path: |
-            bin/packages/*/packages_ci/luci-app-ddns-go*.[ai]pk
-            bin/packages/*/packages_ci/luci-i18n-ddns-go*.[ai]pk
+          path: bin/packages/*/packages_ci/*.[ai]pk
+
   build-core:
     name: Build ${{ matrix.arch }}
     needs: prepare
@@ -108,7 +107,7 @@ jobs:
 
       - name: Add arch suffix to ddns-go
         run: |
-          for file in bin/packages/${{ matrix.arch }}/packages_ci/ddns-go*.[ai]pk; do
+          for file in bin/packages/${{ matrix.arch }}/packages_ci/*.[ai]pk; do
             dir=$(dirname "$file")
             filename=$(basename "$file")
             newname="${filename%.*}_${{ matrix.arch }}.${filename##*.}"
@@ -118,8 +117,8 @@ jobs:
       - name: Upload ddns-go artifact
         uses: actions/upload-artifact@v6
         with:
-          name: core/${{ matrix.arch }}
-          path: bin/packages/${{ matrix.arch }}/packages_ci/ddns-go*.[ai]pk
+          name: ${{ matrix.arch }}
+          path: bin/packages/${{ matrix.arch }}/packages_ci/*.[ai]pk
 
   release:
     name: Release all artifacts
