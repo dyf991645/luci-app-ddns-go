@@ -50,7 +50,7 @@ jobs:
         uses: actions/upload-artifact@v6
         with:
           name: luci-packages
-          path: bin/packages/*/packages_ci/*.[ai]pk
+          path: bin/packages/*/packages_ci/luci-*.[ai]pk
 
   build-core:
     name: Build core ${{ matrix.arch }}
