@@ -19,7 +19,32 @@ jobs:
             else
               echo "final_tag=v$(date +'%Y%m%d%H%M%S')" >> $GITHUB_OUTPUT
             fi
-  build:
+
+  build-luci:
+    name: Build luci packages
+    needs: prepare
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Building luci packages (arch independent)
+        uses: openwrt/gh-action-sdk@main
+        env:
+          ARCH: all
+          FEEDNAME: packages_ci
+          PACKAGES: "luci-app-ddns-go luci-i18n-ddns-go"
+          NO_REFRESH_CHECK: true
+          V: s
+
+      - name: Upload luci artifacts
+        uses: actions/upload-artifact@v6
+        with:
+          name: luci-packages
+          path: |
+            bin/packages/*/packages_ci/luci-app-ddns-go*.[ai]pk
+            bin/packages/*/packages_ci/luci-i18n-ddns-go*.[ai]pk
+  build-core:
     name: Build ${{ matrix.arch }}
     needs: prepare
     runs-on: ubuntu-latest
@@ -53,52 +78,70 @@ jobs:
           # - mipsel_24kc_24kf
           # - mipsel_74kc
           # - mipsel_mips32
-          # - x86_64
+          - x86_64
     steps:
       - name: Checkout
         uses: actions/checkout@v6
-
-      - name: Determine Tag Name
-        id: tag_logic
-        run: |
-          if [ "${{ github.ref_type }}" == "tag" ]; then
-            # 如果是 push tags 触发，直接使用当前的 tag 名
-            echo "final_tag=${{ github.ref_name }}" >> $GITHUB_OUTPUT
-            echo "Using existing git tag: ${{ github.ref_name }}"
-          else
-            # 否则（如 workflow_dispatch），生成一个带时间戳的新 tag
-            NEW_TAG="manual-$(date +'%Y%m%d-%H%M%S')"
-            echo "final_tag=$NEW_TAG" >> $GITHUB_OUTPUT
-            echo "Generated new tag: $NEW_TAG"
-          fi
           
       - name: Setup Go
         uses: actions/setup-go@v6
         with:
-          go-version: '1.25'
+          go-version: stable
 
-      - name: Building packages
+      - name: Building ddns-go
         uses: openwrt/gh-action-sdk@main
         env:
           ARCH: ${{ matrix.arch }}
           FEEDNAME: packages_ci
-          PACKAGES: luci-app-ddns-go
+          PACKAGES: ddns-go
           NO_REFRESH_CHECK: true
           V: s
 
-      - name: Upload artifacts
+      - name: Upload ddns-go artifact
         uses: actions/upload-artifact@v6
         with:
-          name: ${{ matrix.arch }}
-          path: bin/packages/${{ matrix.arch }}/packages_ci/*.[ai]pk
+          name: core/${{ matrix.arch }}
+          path: bin/packages/${{ matrix.arch }}/packages_ci/ddns-go*.[ai]pk
 
-      - name: Release
+  release:
+    name: Release all artifacts
+    needs: [prepare, build-luci, build-core]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v7
+        with:
+          path: ./artifacts
+
+      - name: Add suffix to artifact
+        run: |
+          for arch_dir in ./artifacts/core/*/; do
+            arch=$(basename "$arch_dir")
+            for file in "$arch_dir"ddns-go*.[ai]pk; do
+              filename=$(basename "$file")
+              newname="${filename%.*}_${arch}.${filename##*.}"
+              mv "$file" "$arch_dir$newname"
+            done
+          done
+          for file in ./artifacts/luci-packages/*.[ai]pk; do
+            filename=$(basename "$file")
+            newname="${filename%.*}_all.${filename##*.}"
+            mv "$file" "$(dirname "$file")/$newname"
+          done
+
+      - name: Collect all artifacts
+        run: |
+          mkdir -p release_files
+          find ./artifacts -name "*.[ai]pk" -type f -exec cp {} release_files/ \;
+
+      - name: Release all artifacts
         uses: ncipollo/release-action@v1
         with:
           name: ${{ needs.prepare.outputs.release_tag }}
           tag: ${{ needs.prepare.outputs.release_tag }}
-          commit: ${{ github.ref_name }}
+          commit: ${{ github.sha }}
           token: ${{ secrets.GITHUB_TOKEN }}
           allowUpdates: true
           replacesArtifacts: true
-          artifacts: "bin/packages/${{ matrix.arch }}/packages_ci/*.[ai]pk"
+          artifactErrorsFailBuild: true
+          artifacts: "release_files/*.[ai]pk"
