@@ -10,7 +10,6 @@ jobs:
   build:
     name: Build ${{ matrix.arch }}
     runs-on: ubuntu-latest
-    env:
     strategy:
       fail-fast: false
       matrix:
